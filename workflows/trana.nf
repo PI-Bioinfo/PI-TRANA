@@ -26,7 +26,7 @@ include { PHYLOSEQ_OBJECT                        } from '../modules/local/phylos
 include { ASSIGNMENT_HEATMAP                     } from '../modules/local/assignment_heatmap/main.nf'
 include { CTRL_COMPARISON                        } from '../modules/local/ctrl_comparison/main.nf'
 include { TRANSLATE_TAXIDS                       } from '../modules/local/translate_taxids/main.nf'
-
+include { AMR_GENES                             } from '../subworkflows/local/amr_detection.nf'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -45,6 +45,9 @@ workflow TRANA {
     ch_multiqc_files = channel.empty()
 
     summary_params = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
+    ch_taxonmap = params.taxonmap ? file(params.taxonmap, checkIfExists: true) : []
+    ch_taxonnodes = params.taxonnodes ? file(params.taxonnodes, checkIfExists: true) : []
+    ch_taxonnames = params.taxonnames ? file(params.taxonnames, checkIfExists: true) : []
 
     //
     // MODULE: Run FastQC
@@ -215,11 +218,23 @@ workflow TRANA {
 
         ch_versions = ch_versions.mix(PHYLOSEQ_OBJECT.out.versions)
     }
+    ch_amr_db = Channel
+        .fromPath(params.amr_database, checkIfExists: true)
+        .map { fasta ->
+            tuple([id: 'amr_db'], fasta)
+        }
+    AMR_GENES(ch_processed_optionally_sampled_reads, 
+                ch_amr_db, 
+                ch_taxonmap, 
+                ch_taxonnodes, 
+                ch_taxonnames)
+
 
     // collect tool versions.
     CUSTOM_DUMPSOFTWAREVERSIONS(
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
