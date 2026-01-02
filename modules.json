@@ -5,6 +5,11 @@
         "https://github.com/nf-core/modules.git": {
             "modules": {
                 "nf-core": {
+                    "amrfinderplus/run": {
+                        "branch": "master",
+                        "git_sha": "a621003186ea59091561005bce7ce5fd645c7f07",
+                        "installed_by": ["modules"]
+                    },
                     "custom/dumpsoftwareversions": {
                         "branch": "master",
                         "git_sha": "05954dab2ff481bcb999f24455da29a5828af08d",
@@ -33,6 +38,11 @@
                         "git_sha": "81880787133db07d9b4c1febd152c090eb8325dc",
                         "installed_by": ["modules"],
                         "patch": "modules/nf-core/filtlong/filtlong.diff"
+                    },
+                    "kraken2/kraken2": {
+                        "branch": "master",
+                        "git_sha": "1a9dc0fd9f8f61099b3c912df1ab97fac72a1f86",
+                        "installed_by": ["modules"]
                     },
                     "krona/ktimporttaxonomy": {
                         "branch": "master",

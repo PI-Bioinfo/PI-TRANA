@@ -26,6 +26,8 @@ include { PHYLOSEQ_OBJECT                        } from '../modules/local/phylos
 include { ASSIGNMENT_HEATMAP                     } from '../modules/local/assignment_heatmap/main.nf'
 include { CTRL_COMPARISON                        } from '../modules/local/ctrl_comparison/main.nf'
 include { TRANSLATE_TAXIDS                       } from '../modules/local/translate_taxids/main.nf'
+include { KRAKEN2_KRAKEN2                        } from '../modules/nf-core/kraken2/kraken2'
+include { AMRFINDERPLUS_RUN                      } from '../modules/nf-core/amrfinderplus/run'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -152,6 +154,18 @@ workflow TRANA {
         ch_processed_passed_reads.set{ ch_processed_optionally_sampled_reads }
     }
 
+    if (params.run_kraken2) {
+        //
+        // MODULE: Run Kraken2 
+        //
+        KRAKEN2_KRAKEN2(
+            ch_processed_optionally_sampled_reads,
+            params.kraken2_db,
+            params.kraken2_save_output_fastqs,
+            params.kraken2_save_read_assignment
+        )
+    }
+
     //
     // MODULE: run EMU abundance calculation
     //
@@ -220,6 +234,13 @@ workflow TRANA {
     CUSTOM_DUMPSOFTWAREVERSIONS(
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
+
+    //
+    // Module: AMRFinderPlus
+    // AMRFINDERPLUS_RUN(
+    //     ch_amrfinderplus_input,
+    //     ch_amrfinderplus_db
+    // )
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

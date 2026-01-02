@@ -2,6 +2,7 @@ assets/databases/emu_database/species_taxid.fasta
 assets/databases/emu_database/taxonomy.tsv
 assets/databases/krona/taxonomy/images.dmp
 assets/databases/krona/taxonomy/taxonomy.tab
+assets/emu_db
 .nextflow*
 work/
 data/
@@ -11,3 +12,7 @@ testing/
 testing*
 *.pyc
 null/
+results*
+*log
+amrfinderplus/
+*sh
