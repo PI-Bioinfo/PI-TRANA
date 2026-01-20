@@ -9,8 +9,6 @@ include { softwareVersionsToYAML                 } from '../subworkflows/nf-core
 include { paramsSummaryMultiqc                   } from '../subworkflows/nf-core/utils_nfcore_pipeline/main.nf'
 include { methodsDescriptionText                 } from '../subworkflows/local/utils_nfcore_trana_pipeline/main.nf'
 include { GENERATE_MASTER_HTML                   } from '../modules/local/generate_master_html/main.nf'
-include { EMU_ABUNDANCE                          } from '../modules/local/emu/abundance/main.nf'
-include { KRONA_KTIMPORTTAXONOMY                 } from '../modules/nf-core/krona/ktimporttaxonomy/main.nf'
 include { CUSTOM_DUMPSOFTWAREVERSIONS            } from '../modules/nf-core/custom/dumpsoftwareversions/main.nf'
 include { MULTIQC                                } from '../modules/nf-core/multiqc/main.nf'
 include { FASTQC                                 } from '../modules/nf-core/fastqc/main.nf'
@@ -20,14 +18,12 @@ include { NANOPLOT as NANOPLOT_PROCESSED_READS   } from '../modules/nf-core/nano
 include { PORECHOP_ABI                           } from '../modules/nf-core/porechop/abi/main.nf'
 include { SEQTK_SAMPLE                           } from '../modules/nf-core/seqtk/sample/main.nf'
 include { FILTLONG                               } from '../modules/nf-core/filtlong/main.nf'
-include { EMU_COMBINE_OUTPUTS                    } from '../modules/local/emu/combine_outputs/main.nf'
 include { COMBINE_REPORTS                        } from '../modules/local/phyloseq/main.nf'
 include { PHYLOSEQ_OBJECT                        } from '../modules/local/phyloseq/main.nf'
 include { ASSIGNMENT_HEATMAP                     } from '../modules/local/assignment_heatmap/main.nf'
 include { CTRL_COMPARISON                        } from '../modules/local/ctrl_comparison/main.nf'
-include { TRANSLATE_TAXIDS                       } from '../modules/local/translate_taxids/main.nf'
-include { KRAKEN2_KRAKEN2                        } from '../modules/nf-core/kraken2/kraken2'
 include { AMRFINDERPLUS_RUN                      } from '../modules/nf-core/amrfinderplus/run'
+include { TAXONOMIC_CLASSIFICATION               } from '../subworkflows/local/taxon_class.nf'
 include { AMR_GENES                              } from '../subworkflows/local/amr_detection.nf'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -157,56 +153,18 @@ workflow TRANA {
         ch_processed_passed_reads.set{ ch_processed_optionally_sampled_reads }
     }
 
-    if (params.run_kraken2) {
-        //
-        // MODULE: Run Kraken2 
-        //
-        KRAKEN2_KRAKEN2(
-            ch_processed_optionally_sampled_reads,
-            params.kraken2_db,
-            params.kraken2_save_output_fastqs,
-            params.kraken2_save_read_assignment
-        )
-    }
-
     //
-    // MODULE: run EMU abundance calculation
-    //
-    EMU_ABUNDANCE(ch_processed_optionally_sampled_reads)
-    ch_versions = ch_versions.mix(EMU_ABUNDANCE.out.versions)
-    if (params.run_krona) {
-        //
-        // MODULE: Run krona plot
-        //
-        KRONA_KTIMPORTTAXONOMY(
-            EMU_ABUNDANCE.out.report,
-            file(params.krona_taxonomy_tab, checkExists: true)
-        )
-        ch_versions = ch_versions.mix(KRONA_KTIMPORTTAXONOMY.out.versions.first())
-    }
-
-    // MODULE: run translate_taxids
-    if (params.make_heatmap) {
-        TRANSLATE_TAXIDS(EMU_ABUNDANCE.out.assignment_report)
-        ch_versions = ch_versions.mix(TRANSLATE_TAXIDS.out.versions)
-
-        // Module: run assignment_heatmap
-        ASSIGNMENT_HEATMAP(TRANSLATE_TAXIDS.out.assignment_translated_report)
-        ch_versions = ch_versions.mix(ASSIGNMENT_HEATMAP.out.versions)
-    }
-    // MODULE: run emu combine-outputs
-    ch_emu_combine_input_files = channel.empty()
-    // Collect all reports into a single list containing the paths
-    ch_emu_combine_input_files = EMU_ABUNDANCE.out.report
-        .map { it[1] }  // Extract only the file path from the tuple (meta, path)
-        .collect()
-        .set { collected_files }
-    EMU_COMBINE_OUTPUTS(collected_files)
-    ch_versions = ch_versions.mix(EMU_COMBINE_OUTPUTS.out.versions)
+    // SUBWORKFLOW: run taxonomic classification
+    TAXONOMIC_CLASSIFICATION(
+        ch_processed_optionally_sampled_reads
+    )
+    ch_emu_combined_reports = TAXONOMIC_CLASSIFICATION.out.combined_report
+    ch_emu_combined_counts_report = TAXONOMIC_CLASSIFICATION.out.combined_counts_report
+    ch_versions = ch_versions.mix(TAXONOMIC_CLASSIFICATION.out.versions)
 
     // MODULE: run ctrl_comparison
     if (params.ctrl_1) {
-        CTRL_COMPARISON(EMU_COMBINE_OUTPUTS.out.combined_report,EMU_COMBINE_OUTPUTS.out.combined_counts_report)
+        CTRL_COMPARISON(ch_emu_combined_reports,ch_emu_combined_counts_report)
         ch_versions = ch_versions.mix(CTRL_COMPARISON.out.versions)
     }
     //
@@ -232,24 +190,26 @@ workflow TRANA {
 
         ch_versions = ch_versions.mix(PHYLOSEQ_OBJECT.out.versions)
     }
-    ch_amr_db = Channel
-        .fromPath(params.amr_database, checkIfExists: true)
-        .map { fasta ->
-            tuple([id: 'amr_db'], fasta)
-        }
-    AMR_GENES(ch_processed_optionally_sampled_reads, 
-                ch_amr_db, 
-                ch_taxonmap, 
-                ch_taxonnodes, 
-                ch_taxonnames)
 
+    // 
+    // SUBWORKFLOW: AMR GENES 
+    if (params.run_amr_pred) {
+        ch_amr_db = Channel
+            .fromPath(params.amr_database, checkIfExists: true)
+            .map { fasta ->
+                tuple([id: 'amr_db'], fasta)
+            }
+        AMR_GENES(ch_processed_optionally_sampled_reads, 
+                    ch_amr_db, 
+                    ch_taxonmap, 
+                    ch_taxonnodes, 
+                    ch_taxonnames)
+    }
 
     // collect tool versions.
     CUSTOM_DUMPSOFTWAREVERSIONS(
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
-
-
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     COLLECT REPORTS & MultiQC
