@@ -10,25 +10,11 @@
 <!-- TODO nf-core: Write a 1-2 sentence summary of what data the pipeline is
 for and what it does -->
 
-TRANA (previously known as gms_16S) bioinformatics analysis pipeline for the [EMU tool](https://github.com/treangenlab/emu).
+PI-TRANA is a bioinformatics analysis pipeline for the [EMU tool](https://github.com/treangenlab/emu) and [kraken2](https://github.com/DerrickWood/kraken2) for taxonomic classification for full length ITS/16S.
 
-This Nextflow pipeline utilizes FastQC, Nanoplot, MultiQC, Porechop_ABI,
-Filtlong, EMU, and Krona. EMU is the tool that does the taxonomic profiling of
-16S rRNA reads. The results are displayed with Krona. Built with Nextflow, it
-ensures portability and reproducibility across different computational
-infrastructures. It has been tested on Linux and on mac M1 (not recommended,
-quite slow). FastQC and Nanoplot performs quality control, Porechop_ABI trims
-adapters (optional), Filtlong filters the fastq-files such that only reads
-that are close to 1500 bp are used (optional), EMU assigns taxonomic
-classifications, and Krona visualises the result table from EMU. The pipeline
-enables microbial community analysis, offering insights into the diversity in
-samples.
+This Nextflow pipeline utilizes FastQC, Nanoplot, MultiQC, Porechop_ABI, Filtlong, EMU, kraken2 and Krona, Diamond. EMU is the tool that does the taxonomic profiling of 16S rRNA reads, and kraken2 is a taxonomic classification system using exact k-mer to classify reads. The results are displayed with Krona. Built with Nextflow, it ensures portability and reproducibility across different computational infrastructures. It has been tested on Linux and on mac M1 (not recommended, quite slow). FastQC and Nanoplot performs quality control, Porechop_ABI trims adapters (optional), Filtlong filters the fastq-files such that only reads that are close to 1500 bp are used (optional), EMU / kraken2 assigns taxonomic classifications, and Krona visualises the result table from EMU / kraken2. Diamond is used to perform alignment for AMR detection. The pipeline enables microbial community analysis, offering insights into the diversity in samples.
 
-The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow
-tool to run tasks across multiple compute infrastructures in a very portable
-manner. It uses Docker/Singularity containers making installation trivial and
-results highly reproducible. The [Nextflow DSL2](https://www.nextflow.io/docs/latest/dsl2.html) implementation of this
-pipeline uses one container per process which makes it much easier to maintain
+The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It uses Docker/Singularity containers making installation trivial and results highly reproducible. The [Nextflow DSL2](https://www.nextflow.io/docs/latest/dsl2.html) implementation of this pipeline uses one container per process which makes it much easier to maintain
 and update software dependencies.
 
 ## Pipeline summary
@@ -71,7 +57,9 @@ Relative abundance comparison to controls
 4. Run `make install` which will gunzip all gzipped files in the database
    directory (`assets/databases/emu_database`) and the krona/taxonomy directory
    (`assets/databases/krona/taxonomy`)
-5. Run your command:
+5. Make sure you are running with `-profile base` to enable default configuration. If you have poor resources,
+   enable `-profile low_resource` instead.
+6. Run your command:
 
 ```bash
 nextflow run main.nf \
@@ -79,18 +67,21 @@ nextflow run main.nf \
   --outdir [absolute path]/trana/results \
   --db /[absolute path]/trana/assets/databases/emu_database \
   --seqtype map-ont \
-   -profile singularity,test \
+   -profile docker,base \
   --quality_filtering \
   --longread_qc_qualityfilter_minlength 1200 \
-  --longread_qc_qualityfilter_maxlength 1800
+  --longread_qc_qualityfilter_maxlength 1800 \
+  --run_amr_pred \
+  --diamond_index [absolute path]/to/diamond_index \
+  --amr_database [absolute path]/to/amr_database \ 
+  --run_kraken2 \
+  --krona_taxonomy_tab [absolute path]/to/krona_taxtab \
+  --kraken2_db /[absolute path]/to/kraken2_db
 ```
 
 ## Runs with Nanopore barcode directories
 
-You can run with or without a sample sheet. If no sample_sheet is used, the
-results will be named according to the barcode. If a sample sheet is used the
-results will be named after whats in the second column of the sample sheet. Note
-that the `--input` flag is not needed when `--merge_fastq_pass` is defined.
+You can run with or without a sample sheet. If no sample_sheet is used, the results will be named according to the barcode. If a sample sheet is used the results will be named after whats in the second column of the sample sheet. Note that the `--input` flag is not needed when `--merge_fastq_pass` is defined.
 
 Run without barcode sample sheet:
 
@@ -99,7 +90,7 @@ nextflow run main.nf \
   --outdir [absolute path]/trana/results \
   --db /[absolute path]/trana/assets/databases/emu_database \
   --seqtype map-ont \
-   -profile singularity,test \
+   -profile singularity,test,base \
   --quality_filtering \
   --longread_qc_qualityfilter_minlength 1200 \
   --longread_qc_qualityfilter_maxlength 1800 \
@@ -113,7 +104,7 @@ nextflow run main.nf \
   --outdir /[absolute path to]/trana/results \
   --db /[absolute path to database]/trana/assets/databases/emu_database \
   --seqtype map-ont \
-   -profile singularity,test \
+   -profile singularity,test,base \
   --quality_filtering \
   --longread_qc_qualityfilter_minlength 1200 \
   --longread_qc_qualityfilter_maxlength 1800 \
@@ -137,7 +128,7 @@ nextflow run main.nf \
   --outdir [absolute path]/trana/results \
   --db /[absolute path]/trana/assets/databases/emu_database \
   --seqtype sr \
-   -profile singularity
+   -profile singularity,base
 ```
 
 ```bash
@@ -146,7 +137,7 @@ nextflow run main.nf \
   --outdir [absolute path]/trana/results \
   --db /[absolute path]/trana/assets/databases/emu_database \
   --seqtype sr \
-   -profile singularity \
+   -profile singularity,base \
   --FW_primer AGCTGNCCTG\
   --RV_primer TGCATNCTGA
 ```
@@ -208,29 +199,10 @@ when developing:
 then hit `TAB` twice.
 
 ## Credits
-
-TRANA was originally written by [@fwa93](https://github.com/fwa93) and is further developed and
-maintained by gms-mikro from Genomic Medicine Sweden:
-@samuell
-@ryanjameskennedy
-@sofstam
-@AnderssonOlivia
-@kdannenberg
-@ikarls
-@bokelund
-
-This pipeline is not a formal nf-core pipeline but it partly uses code and
-infrastructure developed and maintained by the [nf-core](https://nf-co.re)
-community, reused here under the [MIT license](https://github.com/nf-core/tools/blob/master/LICENSE).
-
-> The nf-core framework for community-curated bioinformatics pipelines.
->
-> Philip Ewels, Alexander Peltzer, Sven Fillinger, Harshil Patel, Johannes
-> Alneberg, Andreas Wilm, Maxime Ulysse Garcia, Paolo Di Tommaso & Sven
-> Nahnsen.
->
-> Nat Biotechnol. 2020 Feb 13. doi: 10.1038/s41587-020-0439-x.
-> In addition, references of tools and data used in this pipeline are as follows:
+This pipeline is adapted from TRANA version v0.6.0. To see the list of original contributors, please visit [credits](https://github.com/genomic-medicine-sweden/TRANA?tab=readme-ov-file#credits). Pacific Informatics members who contributed to the development and adaptation of this pipeline includes:
+- [Khoi Bui | Pacific Informatics](https://github.com/dinhkhoi-bui) (Pipeline coding / Pipeline testing / Documentation)
+- [Tram Le | Pacific Informatics](https://github.com/htramle) (Pipeline coding / Pipeline testing)
+- [Tuan Nguyen | Pacific Informatics](https://github.com/tuannguyenpi) (Code review)
 
 ### [Nextflow](https://pubmed.ncbi.nlm.nih.gov/28398311/)
 
@@ -278,6 +250,10 @@ community, reused here under the [MIT license](https://github.com/nf-core/tools/
   > Kristen D. Curry et al., “Emu: Species-Level Microbial Community Profiling
   > of Full-Length 16S RRNA Oxford Nanopore Sequencing Data,” Nature Methods,
   > June 30, 2022, 1–9, https://doi.org/10.1038/s41592-022-015>
+
+- [Kraken2](https://github.com/DerrickWood/kraken2)
+  > Wood, D.E., Lu, J. & Langmead, B. Improved metagenomic analysis with 
+  > Kraken 2. Genome Biol 20, 257 (2019). https://doi.org/10.1186/s13059-019-1891-0
 
 ## Citations
 
