@@ -41,6 +41,67 @@ between each sample and each control. This is supported for absolute abundance a
 ![sample-control bar plot comparison. Relative abundance](docs/images/medium_Mock_dil_1_2_BC1_vs_controls.png)
 Relative abundance comparison to controls
 
+## Outputs structure
+When PI-TRANA runs successfully the output directory contains the following files:
+
+```
+results/
+├── diamond
+│   ├── blastx
+|       ├──<sample-name>.log
+|       └──<sample-name>.txt
+│   └── final
+|       └──<sample-name>_amr_filter.tsv
+├── fastqc
+|   ├──<sample-name>_fastqc.html
+|   └──<sample-name>_fastqc.zip
+├── filtlong
+|   └──<sample-name>_filtered.log
+├── kraken2
+|   └──<sample-name>.kraken2.report.txt
+├── krona
+|   └──<sample-name>_krona.html
+├── multiqc
+│   ├── multiqc_data
+│   └── multiqc_plots
+│       ├── pdf
+│       ├── png
+│       └── svg
+|   ├── multiqc_report.html
+├── nanoplot_processed
+|   ├──<sample-name>_processed_LengthvsQualityScatterPlot_<dot/kde>.html
+|   ├──<sample-name>_processed_NanoPlot-report.html
+|   ├──<sample-name>_processed_NanoStats.txt
+|   ├──<sample-name>_processed_Non_weightedHistogramReadlength.html
+|   ├──<sample-name>_processed_Non_weightedLogTransformed_HistogramReadlength.html
+|   ├──<sample-name>_processed_WeightedHistogramReadlength.html
+|   ├──<sample-name>_processed_WeightedLogTransformed_HistogramReadlength.html
+|   └──<sample-name>_processed_Yield_By_Length.html
+├── nanoplot_unprocessed (same as nanoplot_processed)
+├── pipeline_info
+|   ├── execution_report_<date>.html
+|   ├── execution_timeline_<date>.html
+|   ├── execution_trace_<date>.txt
+|   ├── params_<date>.json
+|   ├── pipeline_dag_<date>.html
+|   └── software_versions.yml
+└── results
+    ├── assignment_heatmap
+    │   ├── assignment_heatmap_logs
+    |   └── <sample-name>_assignment_heatmap.png
+    ├── emu-combined
+    │   ├── collected_reports_counts_dir
+    |   |   └── emu-combined-species-counts.tsv
+    │   ├── collected_reports_dir
+    |   |   └── emu-combined-species.tsv
+    │   └── emu-combined-outputs.log
+    ├── emu_logs
+    |   └── <sample-name>_emu_log.log 
+    └── translate_taxids
+        └── <sample-name>_read-assignment-distributions_translated.tsv
+        └── translate_taxids_log.log  
+```    
+
 ## Quick Start
 
 1. Install [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html#installation) (`>=22.10.1`)
